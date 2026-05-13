@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAR1459 Document Map v2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; overflow: hidden; user-select: none; }
+
+#canvas { width: 100vw; height: 100vh; cursor: grab; }
+#canvas.grabbing { cursor: grabbing; }
+
+/* ── Controls ── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 46px;
+  background: #1a3a5c; display: flex; align-items: center;
+  padding: 0 14px; gap: 12px; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+#topbar h1 { font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; }
+#topbar .sep { width: 1px; height: 22px; background: #2e6da4; flex-shrink: 0; }
+#topbar .hint { font-size: 11px; color: #8ab4d4; white-space: nowrap; }
+
+/* Filter chips */
+#filters { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+.chip {
+  padding: 4px 11px; border-radius: 12px; font-size: 11px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; border: 1.5px solid transparent;
+  transition: all 0.15s; color: #c8dff0; background: rgba(255,255,255,0.08);
+}
+.chip:hover { background: rgba(255,255,255,0.18); }
+.chip.active { color: #fff; border-color: currentColor; }
+.chip[data-f="all"].active        { color: #fff;    background: #2e6da4; border-color: #2e6da4; }
+.chip[data-f="soil-sampling"].active { color: #fff; background: #2d8653; border-color: #2d8653; }
+.chip[data-f="modeling"].active   { color: #fff;    background: #2263a8; border-color: #2263a8; }
+.chip[data-f="additionality"].active{ color: #fff;  background: #b85a10; border-color: #b85a10; }
+.chip[data-f="data-mgmt"].active  { color: #fff;    background: #8a3090; border-color: #8a3090; }
+.chip[data-f="permanence"].active { color: #fff;    background: #2278aa; border-color: #2278aa; }
+.chip[data-f="leakage"].active    { color: #fff;    background: #a06010; border-color: #a06010; }
+.chip[data-f="project-setup"].active{ color: #fff;  background: #5a3aaa; border-color: #5a3aaa; }
+.chip[data-f="co-benefits"].active{ color: #fff;    background: #1a7a50; border-color: #1a7a50; }
+
+/* Zoom */
+#zoom-btns { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
+.zbtn {
+  width: 26px; height: 26px; border-radius: 6px; border: 1px solid #2e6da4;
+  background: rgba(255,255,255,0.1); color: #c8dff0; font-size: 16px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.zbtn:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Info panel ── */
+#info {
+  position: fixed; bottom: 16px; left: 16px; max-width: 340px;
+  background: #fff; border: 1px solid #c8d8ea; border-radius: 10px;
+  padding: 14px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  display: none; z-index: 100;
+}
+#info .inf-id   { font-size: 10px; font-family: monospace; color: #5a8aaa; margin-bottom: 4px; }
+#info .inf-title { font-size: 13px; font-weight: 700; color: #1a3a5c; margin-bottom: 6px; line-height: 1.3; }
+#info .inf-desc  { font-size: 11px; color: #444; line-height: 1.5; }
+#info .inf-topic { display: inline-block; margin-top: 8px; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+#info .inf-refs  { margin-top: 8px; font-size: 11px; color: #5a7a9a; }
+#info .inf-refs b { color: #1a3a5c; }
+#info .close-btn { position: absolute; top: 8px; right: 10px; cursor: pointer; font-size: 16px; color: #aaa; line-height: 1; }
+#info .close-btn:hover { color: #333; }
+
+/* ── Legend ── */
+#legend {
+  position: fixed; bottom: 16px; right: 16px;
+  background: #fff; border: 1px solid #c8d8ea; border-radius: 10px;
+  padding: 12px 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  z-index: 100; min-width: 190px;
+}
+#legend h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #7a9ab0; margin-bottom: 8px; }
+.leg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 11px; color: #333; }
+.leg-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.leg-box { width: 14px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.leg-line { width: 22px; height: 2px; flex-shrink: 0; }
+.leg-dash { width: 22px; height: 0; flex-shrink: 0; border-top: 2px dashed #888; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>CAR1459 — Document Map</h1>
+  <div class="sep"></div>
+  <div id="filters">
+    <span class="chip active" data-f="all">All Topics</span>
+    <span class="chip" data-f="soil-sampling">Soil Sampling</span>
+    <span class="chip" data-f="modeling">Modeling</span>
+    <span class="chip" data-f="additionality">Additionality</span>
+    <span class="chip" data-f="data-mgmt">Data Mgmt</span>
+    <span class="chip" data-f="permanence">Permanence</span>
+    <span class="chip" data-f="leakage">Leakage</span>
+    <span class="chip" data-f="project-setup">Project Setup</span>
+    <span class="chip" data-f="co-benefits">Co-Benefits</span>
+  </div>
+  <div class="sep"></div>
+  <span class="hint">Scroll to zoom · Drag to pan · Click nodes</span>
+  <div id="zoom-btns">
+    <div class="zbtn" id="zin">+</div>
+    <div class="zbtn" id="zout">−</div>
+    <div class="zbtn" id="zfit" title="Fit to screen" style="font-size:11px;">⊞</div>
+  </div>
+</div>
+
+<svg id="canvas">
+  <defs>
+    <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#bbb"/>
+    </marker>
+  </defs>
+  <g id="root"></g>
+</svg>
+
+<div id="info">
+  <span class="close-btn" id="info-close">×</span>
+  <div class="inf-id" id="inf-id"></div>
+  <div class="inf-title" id="inf-title"></div>
+  <div class="inf-desc" id="inf-desc"></div>
+  <span class="inf-topic" id="inf-topic"></span>
+  <div class="inf-refs" id="inf-refs"></div>
+</div>
+
+<div id="legend">
+  <h4>Node Type</h4>
+  <div class="leg-row"><div class="leg-box" style="background:#1a3a5c;border:2px solid #0d1f33;"></div>Primary Documents</div>
+  <div class="leg-row"><div class="leg-box" style="background:#d6e8f7;border:2px solid #2e6da4;"></div>Monitoring Plan Sections</div>
+  <div class="leg-row"><div class="leg-box" style="background:#fff0f0;border:2px solid #e81313;"></div>Monitoring Report Sections</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#888;border:1.5px solid #555;"></div>Supporting Doc (colored by topic)</div>
+  <h4 style="margin-top:10px;">Links</h4>
+  <div class="leg-row"><div class="leg-line" style="background:#2e6da4;"></div>Section links</div>
+  <div class="leg-row"><div class="leg-dash"></div>Supporting doc refs</div>
+  <div class="leg-row"><div style="width:22px;height:0;border-top:1.5px dashed #aaa;flex-shrink:0;"></div>Doc cross-references</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════
+
+const TOPIC_COLOR = {
+  'soil-sampling': '#2d8653',
+  'modeling':      '#2263a8',
+  'additionality': '#c06018',
+  'data-mgmt':     '#8a3090',
+  'permanence':    '#1a78aa',
+  'leakage':       '#a06820',
+  'project-setup': '#5a3aaa',
+  'co-benefits':   '#1a7a50',
+};
+const TOPIC_LABEL = {
+  'soil-sampling': 'Soil Sampling',
+  'modeling':      'Modeling & Quantification',
+  'additionality': 'Additionality',
+  'data-mgmt':     'Data Management',
+  'permanence':    'Permanence',
+  'leakage':       'Leakage',
+  'project-setup': 'Project Setup',
+  'co-benefits':   'Co-Benefits / SDGs',
+};
+
+// All supporting docs (id -> {title, topic})
+const DOCS = {
+  '0001': {t:'Soil Carbon (30 cm) Sampling',                                  topic:'soil-sampling'},
+  '0002': {t:'Bulk Density (30 cm) Sampling',                                 topic:'soil-sampling'},
+  '0003': {t:'pH and Texture Composite (30 cm) Sampling',                     topic:'soil-sampling'},
+  '0004': {t:'Field Mapping and Navigation',                                   topic:'soil-sampling', retired:true},
+  '0005': {t:'Field Equipment Sanitation Procedures',                          topic:'soil-sampling'},
+  '0006': {t:'Sample Shipment',                                                topic:'soil-sampling', retired:true},
+  '0007': {t:'Sampling Team Qualifications',                                   topic:'soil-sampling'},
+  '0009': {t:'Grower Contracts (all versions)',                                topic:'project-setup'},
+  '0009a':{t:'Indigo Carbon Agreement v2.0',                                   topic:'project-setup'},
+  '0009b':{t:'Indigo Carbon Agreement v2.1',                                   topic:'project-setup'},
+  '0009c':{t:'Indigo Carbon Agreement v3.0',                                   topic:'project-setup'},
+  '0009d':{t:'Indigo Carbon Agreement v4.0',                                   topic:'project-setup'},
+  '0009e':{t:'Indigo Carbon Agreement v4.1',                                   topic:'project-setup'},
+  '0009f':{t:'Indigo Carbon Agreement v4.2',                                   topic:'project-setup'},
+  '0009g':{t:'Indigo Carbon Agreement v4.3',                                   topic:'project-setup'},
+  '0009h':{t:'Indigo Carbon Agreement v4.4',                                   topic:'project-setup'},
+  '0009i':{t:'Indigo Carbon Agreement v4.5',                                   topic:'project-setup'},
+  '0009j':{t:'Indigo Carbon Agreement v4.6',                                   topic:'project-setup'},
+  '0009k':{t:'Indigo Carbon Agreement v4.7',                                   topic:'project-setup'},
+  '0009l':{t:'Indigo Carbon Agreement v4.8',                                   topic:'project-setup'},
+  '0010': {t:'De Minimis Assessments',                                         topic:'modeling'},
+  '0011': {t:'Assignment of Carbon Attribute Rights',                          topic:'project-setup'},
+  '0012': {t:'Attestation of Voluntary Implementation',                        topic:'additionality'},
+  '0013': {t:'Attestation of Regulatory Compliance',                           topic:'project-setup'},
+  '0014': {t:'Project Implementation Agreement',                               topic:'permanence'},
+  '0015': {t:'Lab Soil Analysis Procedures',                                   topic:'soil-sampling'},
+  '0016': {t:'Cultivation Cycle and Crop Growing Seasons Definition',          topic:'project-setup'},
+  '0018': {t:'Additional Management Practice Assessment',                      topic:'additionality'},
+  '0024a':{t:'How Additional Management Practices Were Defined',               topic:'additionality'},
+  '0024b':{t:'Additional Practices Literature and Model Review',               topic:'additionality'},
+  '0026a':{t:'Constructing the Common Practice Assessment Negative List',      topic:'additionality'},
+  '0026b':{t:'County-Level Tillage Rotation Assessment',                       topic:'additionality'},
+  '0026c':{t:'Negative List',                                                  topic:'additionality'},
+  '0026d':{t:'CAR Approval of County-Level Tillage Rotation Assessment',       topic:'additionality'},
+  '0027': {t:'Attestation of Title',                                           topic:'project-setup'},
+  '0028': {t:'Project Submittal Form',                                         topic:'project-setup'},
+  '0029': {t:'Grower Survey Questions',                                        topic:'data-mgmt'},
+  '0030': {t:'Model Input Mapping',                                            topic:'modeling'},
+  '0031': {t:'Gap-Filling Procedures',                                         topic:'data-mgmt'},
+  '0032': {t:'Grower Data QA/QC',                                              topic:'data-mgmt'},
+  '0034': {t:'Boundary Review Workflow and SOP',                               topic:'data-mgmt'},
+  '0046': {t:'Type 1 Model Validation Report (DayCent-CR v1.1.0)',             topic:'modeling'},
+  '0048': {t:'Logic Used to Construct Baseline Threads',                       topic:'modeling'},
+  '0049': {t:'Model Provider Documentation',                                   topic:'modeling'},
+  '0050': {t:'Monitoring for Permanence',                                      topic:'permanence'},
+  '0050a':{t:'Proposal for Handling Permanence',                               topic:'permanence'},
+  '0051': {t:'Results of Permanence Monitoring',                               topic:'permanence'},
+  '0054': {t:'Imputation of Bulk Density, Soil pH, and Texture Measurements',  topic:'soil-sampling'},
+  '0055': {t:'Remote Sensing Model Documentation',                             topic:'modeling'},
+  '0059': {t:'CAR SDG Reporting Tool',                                         topic:'co-benefits'},
+  '0060': {t:'Process to Screen Soil Sampling Datasets',                       topic:'soil-sampling'},
+  '0062': {t:'Addressing Incomplete Soil Sample Data',                         topic:'soil-sampling'},
+  '0063': {t:'Details on Addressing Incomplete Data',                          topic:'soil-sampling'},
+  '0065': {t:'Model Output Post-Processing',                                   topic:'modeling'},
+  '0066': {t:'Project Data Flow Diagram',                                      topic:'data-mgmt'},
+  '0067a':{t:'CAR Written Guidance',                                           topic:'project-setup'},
+  '0067b':{t:'Variance Request for Grazing Estimation',                        topic:'modeling'},
+  '0067c':{t:'Variance Determination for Grazing Estimation',                  topic:'modeling'},
+  '0067d':{t:'Supporting Documentation to CAR Guidance',                       topic:'project-setup'},
+  '0068': {t:'Details on the Pre-Strata',                                      topic:'modeling'},
+  '0069': {t:'Data Sources for Data Review',                                   topic:'data-mgmt'},
+  '0070': {t:'Running the Model',                                              topic:'modeling'},
+  '0071': {t:'APH Method for Leakage Calculation',                             topic:'leakage'},
+  '0072': {t:'Model Sensitivity',                                              topic:'modeling'},
+  '0073': {t:'Model Preparation',                                              topic:'modeling'},
+  '0074': {t:'Default Equation Input Mapping',                                 topic:'modeling'},
+  '0075': {t:'Model Output Screening QC and Gap-Filling Assessment',           topic:'modeling', retired:true},
+  '0076': {t:'Alternative Fossil Fuel Accounting Proposal',                    topic:'modeling'},
+  '0077': {t:'Supply Partnerships',                                            topic:'project-setup'},
+};
+
+// ── Monitoring Plan section tree ──────────────────────────────────
+// topics[] lists all topics a section touches (for filter matching)
+const MP_SECTIONS = [
+  { id:'s1', label:'§1 Project Details',
+    topics:['project-setup'],
+    refs:['0011','0027','0009','0009a','0009b','0009c','0009d','0009e','0009f','0009g','0009h','0009i','0009j','0009k','0009l','0012','0013'],
+    subs:[] },
+
+  { id:'s2', label:'§2 Environmental Safeguards & SDGs',
+    topics:['co-benefits','project-setup'],
+    refs:['0009','0059'],
+    subs:[] },
+
+  { id:'s3', label:'§3 Protocol & Additionality',
+    topics:['additionality','permanence','project-setup','modeling','soil-sampling','data-mgmt'],
+    refs:['0009','0012','0013','0014','0016','0018','0024a','0024b','0026a','0026b','0026c','0026d','0028','0034','0046','0050','0050a','0051','0054','0055','0063','0067a','0067b','0067c','0068','0077'],
+    subs:[
+      { id:'s3-1', label:'3.1 Project Definition',     topics:['additionality','project-setup','data-mgmt'], refs:['0024a','0024b','0067a','0029','0032','0034','0046'] },
+      { id:'s3-2', label:'3.8 Additionality',          topics:['additionality'],                             refs:['0018','0012','0026a','0026b','0026c','0026d','0009','0032'] },
+      { id:'s3-3', label:'3.9 Permanence',             topics:['permanence'],                                refs:['0014','0050','0050a'] },
+      { id:'s3-4', label:'3.10 Regulatory Compliance', topics:['project-setup'],                             refs:['0013','0032'] },
+      { id:'s3-5', label:'3.11 Variances & Guidance',  topics:['project-setup','modeling','soil-sampling'],  refs:['0067a','0067b','0067c','0009l','0016','0034','0046','0051','0054','0055','0063','0068','0077'] },
+    ]
+  },
+
+  { id:'s4', label:'§4 GHG Assessment Boundary',
+    topics:['modeling'],
+    refs:[],
+    subs:[] },
+
+  { id:'s5', label:'§5 GHG Quantification',
+    topics:['modeling','soil-sampling','leakage'],
+    refs:['0010','0046','0048','0054','0060','0062','0063','0067a','0067c','0068','0071','0072','0076'],
+    subs:[
+      { id:'s5-1', label:'5.2 Sample Design',          topics:['soil-sampling','modeling'],     refs:['0054','0060','0062','0063','0068'] },
+      { id:'s5-2', label:'5.3 Baseline Modeling',      topics:['modeling'],                     refs:['0048','0062','0067a'] },
+      { id:'s5-3', label:'5.4 Quantification Results', topics:['modeling'],                     refs:['0010','0046','0067a','0067c','0062','0072'] },
+      { id:'s5-4', label:'5.5 Leakage',                topics:['leakage'],                      refs:['0071','0029'] },
+    ]
+  },
+
+  { id:'s6', label:'§6 Monitoring & Data',
+    topics:['data-mgmt','soil-sampling','modeling','permanence','leakage'],
+    refs:['0001','0002','0003','0005','0007','0015','0029','0030','0031','0032','0034','0046','0048','0049','0050','0050a','0051','0054','0055','0059','0060','0062','0063','0065','0066','0067a','0067b','0067c','0068','0069','0070','0071','0072','0073','0074','0076','0077'],
+    subs:[
+      { id:'s6-1', label:'6.2 Data Collection',        topics:['data-mgmt'],                              refs:['0029','0030','0031','0069','0067a','0074'] },
+      { id:'s6-2', label:'6.3 Field Boundaries',       topics:['data-mgmt'],                              refs:['0034'] },
+      { id:'s6-3', label:'6.4 Soil Sampling',          topics:['soil-sampling'],                          refs:['0001','0002','0003','0005','0007','0015','0054','0060','0063'] },
+      { id:'s6-4', label:'6.5 Model Use',              topics:['modeling'],                               refs:['0046','0049','0065','0070','0072','0073','0074','0030','0055','0068'] },
+      { id:'s6-5', label:'6.6 Project Monitoring',     topics:['permanence','modeling'],                  refs:['0050','0050a','0051','0055','0067b','0067c'] },
+      { id:'s6-6', label:'6.7 QA/QC Pipeline',        topics:['data-mgmt'],                              refs:['0031','0032','0074','0062','0066','0069'] },
+    ]
+  },
+
+  { id:'s7', label:'§7 Doc Index',
+    topics:['project-setup'],
+    refs: Object.keys(DOCS),
+    subs:[] },
+];
+
+// ── Monitoring Report RP5 sections ────────────────────────────────
+const MR_SECTIONS = [
+  { id:'mr1', label:'RP5 §1 Project Summary',  topics:['project-setup'],               refs:[] },
+  { id:'mr2', label:'RP5 §2 Variances',        topics:['project-setup','modeling'],    refs:['0067a','0067b','0067c'] },
+  { id:'mr3', label:'RP5 §3 Quant. Results',   topics:['modeling','leakage','soil-sampling'], refs:['0046','0068','0071'] },
+  { id:'mr4', label:'RP5 §4 Crediting Period', topics:['modeling'],                    refs:[] },
+];
+
+// ── Cross-references between supporting documents ─────────────────
+// Pairs of [docA, docB] that reference each other or are closely related
+const DOC_XREFS = [
+  ['0001','0002'], ['0001','0003'], ['0002','0003'],     // soil sampling trio
+  ['0001','0015'], ['0002','0015'], ['0003','0015'],     // field sampling → lab analysis
+  ['0005','0001'], ['0005','0002'], ['0005','0003'],     // sanitation → sampling
+  ['0007','0001'],                                       // team quals → sampling
+  ['0026a','0026b'], ['0026b','0026c'], ['0026a','0026c'], ['0026c','0026d'], // additionality neg-list suite
+  ['0024a','0024b'],                                     // additional practices suite
+  ['0046','0049'],                                       // model validation → model provider docs
+  ['0046','0073'], ['0049','0073'], ['0073','0070'],     // model prep chain
+  ['0073','0068'], ['0068','0030'],                      // pre-strata → model input mapping
+  ['0048','0068'],                                       // baseline threads → pre-strata
+  ['0030','0074'],                                       // model input mapping → default equation mapping
+  ['0065','0072'], ['0065','0075'],                      // model output post-processing → sensitivity, retired QC
+  ['0031','0032'], ['0031','0069'],                      // gap-filling → QAQC → data sources
+  ['0060','0062'], ['0062','0063'],                      // soil screening → incomplete data suite
+  ['0054','0060'], ['0054','0063'],                      // imputation → screening / incomplete
+  ['0050','0050a'], ['0050','0051'],                     // permanence monitoring suite
+  ['0067a','0067b'], ['0067b','0067c'], ['0067c','0067d'], // CAR guidance suite
+  ['0009','0009a'], ['0009','0009l'],                    // contract umbrella
+  ['0071','0076'],                                       // leakage methods
+  ['0066','0032'], ['0066','0069'],                      // data flow → QAQC / data sources
+];
+
+
+// ═══════════════════════════════════════════════════════════════════
+// LAYOUT  (horizontal left→right tree)
+// Layout coordinates in "world" pixels:
+//   MP node       → col 0
+//   MP sections   → col 1
+//   MP subsections→ col 2  (only for §3, §5, §6)
+//   Supporting docs→ col 3 (right of subsections) or col 2 (for sections with no subs)
+//   MR sections   → col 4
+//   MR node       → col 5
+// ═══════════════════════════════════════════════════════════════════
+
+const COL = { mp:120, sec:380, sub:640, doc:900, mr_sec:1480, mr:1720 };
+// Row spacing
+const ROW_H_SEC  = 130;   // between MP sections
+const ROW_H_SUB  = 80;    // between subsections
+const ROW_H_DOC  = 54;    // between doc nodes
+const NODE_W_MAIN = 140;  const NODE_H_MAIN = 70;   // primary doc boxes
+const NODE_W_SEC  = 200;  const NODE_H_SEC  = 58;   // section boxes
+const NODE_W_SUB  = 190;  const NODE_H_SUB  = 44;   // subsection boxes
+const NODE_W_DOC  = 160;  const NODE_H_DOC  = 40;   // doc nodes
+const NODE_W_MRS  = 190;  const NODE_H_MRS  = 50;   // MR section boxes
+const DOC_R       = 14;   // doc circle radius
+
+// ── compute vertical positions ────────────────────────────────────
+// We need to figure out how tall each MP section group is (including its subs and docs)
+// then stack them vertically
+
+function buildLayout(activeFilter) {
+  const nodes = [];
+  const edges = [];
+  const docNodes = {};   // docId -> node (shared across sections)
+  const docEdges = [];   // separate list so we can draw them dashed
+  const xrefEdges = [];  // cross-references between docs
+
+  // ── collect which docs pass the current filter ──
+  function docVisible(docId) {
+    if (activeFilter === 'all') return true;
+    return (DOCS[docId]||{}).topic === activeFilter;
+  }
+  function nodeTopicMatch(topics) {
+    if (activeFilter === 'all') return true;
+    return (topics||[]).includes(activeFilter);
+  }
+
+  // ── compute section heights ──
+  // For sections WITH subs: height driven by subs × ROW_H_SUB
+  // For sections WITHOUT subs: height driven by their doc count (but docs are shared)
+  // We'll pre-compute the group height for each section
+
+  // First pass: determine which docs appear at all (per filter) and their section assignments
+  // A doc belongs to the FIRST section/subsection that references it
+  const docOwner = {};   // docId -> {secId, subId or null}
+
+  for (const sec of MP_SECTIONS) {
+    if (sec.subs.length > 0) {
+      for (const sub of sec.subs) {
+        for (const d of sub.refs) {
+          if (!docOwner[d] && docVisible(d)) docOwner[d] = {sec: sec.id, sub: sub.id};
+        }
+      }
+    } else {
+      for (const d of sec.refs) {
+        if (!docOwner[d] && docVisible(d)) docOwner[d] = {sec: sec.id, sub: null};
+      }
+    }
+  }
+
+  // For each subsection, gather its owned docs
+  // For each section without subs, gather its owned docs
+  const secDocMap = {};  // secId -> [docIds]  (for sections without subs)
+  const subDocMap = {};  // subId -> [docIds]
+
+  for (const [docId, owner] of Object.entries(docOwner)) {
+    if (owner.sub) {
+      if (!subDocMap[owner.sub]) subDocMap[owner.sub] = [];
+      subDocMap[owner.sub].push(docId);
+    } else {
+      if (!secDocMap[owner.sec]) secDocMap[owner.sec] = [];
+      secDocMap[owner.sec].push(docId);
+    }
+  }
+
+  // ── compute each section's total height block ──
+  function sectionHeight(sec) {
+    if (sec.subs.length > 0) {
+      // height = sum of sub heights
+      let h = 0;
+      for (const sub of sec.subs) {
+        const dcount = (subDocMap[sub.id] || []).length;
+        const subH = Math.max(NODE_H_SUB, dcount * ROW_H_DOC);
+        h += subH + 20;
+      }
+      return Math.max(NODE_H_SEC + 20, h);
+    } else {
+      const dcount = (secDocMap[sec.id] || []).length;
+      return Math.max(NODE_H_SEC + 20, dcount * ROW_H_DOC);
+    }
+  }
+
+  // ── lay out MR sections ── (mirror, right side)
+  // First, compute total height for all MP sections to center everything
+  const secHeights = MP_SECTIONS.map(s => sectionHeight(s));
+  const totalMPHeight = secHeights.reduce((a,b)=>a+b,0) + (MP_SECTIONS.length-1)*20;
+
+  // We'll figure out MR height similarly
+  const mrTotalH = MR_SECTIONS.length * (NODE_H_MRS + 22) - 22;
+
+  const canvasCenterY = Math.max(totalMPHeight, mrTotalH) / 2 + 80;
+
+  // ── MP primary node ──
+  const mpCY = canvasCenterY;
+  nodes.push({
+    id:'mp', type:'primary', label:['Monitoring Plan','v5.4'],
+    x: COL.mp - NODE_W_MAIN/2, y: mpCY - NODE_H_MAIN/2,
+    w: NODE_W_MAIN, h: NODE_H_MAIN,
+    cx: COL.mp, cy: mpCY,
+    fill:'#1a3a5c', stroke:'#0d1f33', textColor:'#fff',
+    title:'Monitoring Plan v5.4', desc:'Primary program document for CAR1459. Covers project details, eligibility, quantification methodology, monitoring, and all supporting document references.',
+    docId:'CAR1459_Monitoring_Plan_v5.4', topic:'project-setup',
+  });
+
+  // ── lay out MP sections ──
+  let curY = canvasCenterY - totalMPHeight/2;
+
+  for (let si = 0; si < MP_SECTIONS.length; si++) {
+    const sec = MP_SECTIONS[si];
+    const secH = secHeights[si];
+    const secCY = curY + secH/2;
+
+    // Is this section visible given the filter?
+    const secVisible = activeFilter === 'all' ||
+      nodeTopicMatch(sec.topics) ||
+      sec.refs.some(r => docVisible(r)) ||
+      sec.subs.some(sub => sub.refs.some(r => docVisible(r))) ||
+      sec.subs.some(sub => nodeTopicMatch(sub.topics));
+
+    if (!secVisible) {
+      curY += secH + 20;
+      continue;
+    }
+
+    nodes.push({
+      id: sec.id, type:'section', label: [sec.label],
+      x: COL.sec - NODE_W_SEC/2, y: secCY - NODE_H_SEC/2,
+      w: NODE_W_SEC, h: NODE_H_SEC,
+      cx: COL.sec, cy: secCY,
+      fill:'#d6e8f7', stroke:'#2e6da4', textColor:'#1a3a5c',
+      title: sec.label, refs: sec.refs, topics: sec.topics,
+      desc: getSectionDesc(sec.id), topic: (sec.topics||['project-setup'])[0],
+    });
+    edges.push({src:'mp', tgt:sec.id, type:'section'});
+
+    if (sec.subs.length > 0) {
+      // lay out subsections
+      let subCurY = curY;
+      for (const sub of sec.subs) {
+        const dcount = (subDocMap[sub.id] || []).length;
+        const subH = Math.max(NODE_H_SUB, dcount * ROW_H_DOC);
+        const subCY = subCurY + subH/2;
+
+        nodes.push({
+          id: sub.id, type:'subsection', label:[sub.label],
+          x: COL.sub - NODE_W_SUB/2, y: subCY - NODE_H_SUB/2,
+          w: NODE_W_SUB, h: NODE_H_SUB,
+          cx: COL.sub, cy: subCY,
+          fill:'#eaf3fb', stroke:'#6db1ff', textColor:'#1a3a5c',
+          title: sub.label, refs: sub.refs, topics: sub.topics,
+          desc: '', topic: (sub.topics||['project-setup'])[0],
+        });
+        edges.push({src:sec.id, tgt:sub.id, type:'subsection'});
+
+        // docs owned by this sub
+        const ownedDocs = subDocMap[sub.id] || [];
+        ownedDocs.forEach((docId, di) => {
+          const docCY = subCurY + (di + 0.5) * (subH / Math.max(ownedDocs.length,1));
+          const nid = 'd_'+docId;
+          if (!docNodes[nid]) {
+            const d = DOCS[docId];
+            docNodes[nid] = {
+              id: nid, type:'doc', docId,
+              cx: COL.doc, cy: docCY, r: DOC_R,
+              fill: TOPIC_COLOR[d.topic] || '#888',
+              stroke: shadeColor(TOPIC_COLOR[d.topic] || '#888', -40),
+              textColor: '#fff',
+              label: docId, title: d.t,
+              topic: d.topic, retired: d.retired||false,
+              refs: [], // filled in below
+              referencedBy: [],
+            };
+          } else {
+            // already placed - just record edge
+          }
+          docEdges.push({src:sub.id, tgt:nid, type:'docref'});
+        });
+
+        subCurY += subH + 20;
+      }
+    } else {
+      // docs owned directly by this section
+      const ownedDocs = secDocMap[sec.id] || [];
+      ownedDocs.forEach((docId, di) => {
+        const docCY = curY + (di + 0.5) * (secH / Math.max(ownedDocs.length,1));
+        const nid = 'd_'+docId;
+        if (!docNodes[nid]) {
+          const d = DOCS[docId];
+          docNodes[nid] = {
+            id: nid, type:'doc', docId,
+            cx: COL.doc, cy: docCY, r: DOC_R,
+            fill: TOPIC_COLOR[d.topic] || '#888',
+            stroke: shadeColor(TOPIC_COLOR[d.topic] || '#888', -40),
+            textColor: '#fff',
+            label: docId, title: d.t,
+            topic: d.topic, retired: d.retired||false,
+            refs: [],
+            referencedBy: [],
+          };
+        }
+        docEdges.push({src:sec.id, tgt:nid, type:'docref'});
+      });
+    }
+
+    curY += secH + 20;
+  }
+
+  // Add all doc nodes to nodes array
+  for (const n of Object.values(docNodes)) nodes.push(n);
+
+  // ── MR node ──
+  const mrCY = canvasCenterY;
+  nodes.push({
+    id:'mr', type:'primary', label:['Monitoring Report','RP5 v5.8'],
+    x: COL.mr - NODE_W_MAIN/2, y: mrCY - NODE_H_MAIN/2,
+    w: NODE_W_MAIN, h: NODE_H_MAIN,
+    cx: COL.mr, cy: mrCY,
+    fill:'#5c1a1a', stroke:'#330d0d', textColor:'#fff',
+    title:'Monitoring Report RP5 v5.8',
+    desc:'5th Reporting Period results (Jun 2018–Dec 2024). 1,187,163 gross credits generated. 1,423 enrolled growers, 2,463,691 acres, 37 states. Cumulative: 2,113,861 tCO2e net active credits.',
+    docId:'CAR1459_Monitoring_Report_v5.8', topic:'project-setup',
+  });
+  edges.push({src:'mp', tgt:'mr', type:'primary'});
+
+  // ── MR sections ──
+  const mrStartY = canvasCenterY - mrTotalH/2;
+  MR_SECTIONS.forEach((mrs, i) => {
+    const mrsCY = mrStartY + i * (NODE_H_MRS + 22) + NODE_H_MRS/2;
+    const mrsVisible = activeFilter === 'all' ||
+      nodeTopicMatch(mrs.topics) ||
+      (mrs.refs||[]).some(r => docVisible(r));
+    if (!mrsVisible) return;
+
+    nodes.push({
+      id: mrs.id, type:'mr-section', label:[mrs.label],
+      x: COL.mr_sec - NODE_W_MRS/2, y: mrsCY - NODE_H_MRS/2,
+      w: NODE_W_MRS, h: NODE_H_MRS,
+      cx: COL.mr_sec, cy: mrsCY,
+      fill:'#fff0f0', stroke:'#e81313', textColor:'#5c1a1a',
+      title: mrs.label, refs: mrs.refs, topics: mrs.topics,
+      desc: getMRDesc(mrs.id), topic: (mrs.topics||['project-setup'])[0],
+    });
+    edges.push({src:'mr', tgt:mrs.id, type:'mr-section'});
+
+    // MR sections also reference some docs
+    (mrs.refs||[]).forEach(docId => {
+      const nid = 'd_'+docId;
+      if (docNodes[nid]) {
+        docEdges.push({src:mrs.id, tgt:nid, type:'mr-docref'});
+      }
+    });
+  });
+
+  // ── cross-reference edges between docs ──
+  const placedDocIds = new Set(Object.keys(docNodes).map(k => k.replace('d_','')));
+  for (const [a, b] of DOC_XREFS) {
+    if (placedDocIds.has(a) && placedDocIds.has(b)) {
+      xrefEdges.push({src:'d_'+a, tgt:'d_'+b, type:'xref'});
+    }
+  }
+
+  // build referencedBy map on doc nodes
+  const refByMap = {};
+  for (const e of docEdges) {
+    if (!refByMap[e.tgt]) refByMap[e.tgt] = [];
+    refByMap[e.tgt].push(e.src);
+  }
+  for (const n of nodes) {
+    if (n.type === 'doc') n.referencedBy = refByMap[n.id] || [];
+  }
+
+  return { nodes, edges: [...edges, ...docEdges], xrefEdges };
+}
+
+// ── helpers ──────────────────────────────────────────────────────
+function shadeColor(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0,Math.min(255,((n>>16)&0xff)+amt));
+  const g = Math.max(0,Math.min(255,((n>>8)&0xff)+amt));
+  const b = Math.max(0,Math.min(255,(n&0xff)+amt));
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+function getSectionDesc(id) {
+  const d = {
+    's1':'Project name, ID, developer (Indigo Ag), other entities, ownership, relevant standards, and grower contracts.',
+    's2':'No net harm, free/prior/informed consent, stakeholder consultations, grower outreach, SDG impacts.',
+    's3':'Project definition, area, aggregation, start/crediting/reporting dates, additionality (performance standard, legal requirement, payment stacking), permanence, regulatory compliance, variances.',
+    's4':'GHG sources, sinks, and reservoirs (SOC, CH₄, N₂O). Project and baseline boundary definitions.',
+    's5':'Quantification approaches, sample design, baseline modeling (DayCent-CR), SOC stock change, CH₄ and N₂O reductions, de minimis, uncertainty, buffer pool, leakage (livestock and yield).',
+    's6':'Data parameters, infrastructure (DEA, ADS, SEES), grower data, field boundaries, soil sampling, model application, permanence monitoring, 7-Gate QA/QC pipeline, roles & responsibilities.',
+    's7':'Complete index (Table 7.1) of all 77 supporting documents with IDs and descriptions.',
+  };
+  return d[id] || '';
+}
+
+function getMRDesc(id) {
+  const d = {
+    'mr1':'1,423 enrolled growers, 2,463,691 acres, 37,437 fields in 29 U.S. states. Summary of all project activities eligible in RP5.',
+    'mr2':'Approved variance for grazing estimation, CAR registry guidance applied, and reporting modifications for RP5.',
+    'mr3':'RP5 results: 1,187,163 gross credits (121,714 non-reversible + 1,065,449 reversible). SOC, CH₄, N₂O detail, uncertainty & leakage deductions, reversals & adjustments.',
+    'mr4':'Cumulative crediting period totals across all 5 reporting periods: 2,113,861 tCO2e net active credits issued.',
+  };
+  return d[id] || '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const root   = document.getElementById('root');
+let allNodes = [], allEdges = [], activeFilter = 'all';
+let selectedId = null;
+
+// viewport transform
+let vx = 0, vy = 60, vscale = 1;
+const CANVAS_PAD = 80;
+
+function el(tag, attrs={}) {
+  const e = document.createElementNS(SVG_NS, tag);
+  for (const [k,v] of Object.entries(attrs)) e.setAttribute(k,v);
+  return e;
+}
+function txt(tag, attrs, text) {
+  const e = el(tag, attrs);
+  e.textContent = text;
+  return e;
+}
+
+function renderAll(resetVP = true) {
+  const { nodes, edges, xrefEdges } = buildLayout(activeFilter);
+  allNodes = nodes; allEdges = edges;
+  selectedId = null;
+
+  root.innerHTML = '';
+
+  // ── compute bounding box to fit viewport (only when explicitly requested) ──
+  if (resetVP) {
+    const xs = nodes.map(n => n.cx || n.x+n.w/2);
+    const ys = nodes.map(n => n.cy || n.y+n.h/2);
+    const minX = Math.min(...xs) - CANVAS_PAD;
+    const maxX = Math.max(...xs) + CANVAS_PAD;
+    const minY = Math.min(...ys) - CANVAS_PAD;
+    const maxY = Math.max(...ys) + CANVAS_PAD;
+    const worldW = maxX - minX, worldH = maxY - minY;
+    const vw = window.innerWidth, vh = window.innerHeight - 46;
+    const scaleX = vw / worldW, scaleY = vh / worldH;
+    const s = Math.min(scaleX, scaleY, 1.0);
+    vscale = s;
+    vx = (vw - worldW*s)/2 - minX*s;
+    vy = 46 + (vh - worldH*s)/2 - minY*s;
+  }
+  applyTransform();
+
+  // xref edges layer (below everything)
+  const xrefG = el('g', {id:'xrefs'});
+  root.appendChild(xrefG);
+
+  // edges layer
+  const edgeG = el('g', {id:'edges'});
+  root.appendChild(edgeG);
+
+  // node layer
+  const nodeG = el('g', {id:'nodes'});
+  root.appendChild(nodeG);
+
+  // ── draw edges ──
+  for (const e of edges) {
+    const src = nodes.find(n=>n.id===e.src);
+    const tgt = nodes.find(n=>n.id===e.tgt);
+    if (!src || !tgt) continue;
+
+    const isDashed = e.type === 'docref' || e.type === 'mr-docref';
+    const color = (e.type==='primary') ? '#555' :
+                  (e.type==='section'||e.type==='subsection') ? '#2e6da4' :
+                  (e.type==='mr-section') ? '#e81313' :
+                  (e.type==='mr-docref') ? '#e8131380' :
+                  '#aaa';
+    const strokeW = (e.type==='primary') ? 2 :
+                    (e.type==='section') ? 1.5 :
+                    (e.type==='subsection') ? 1.2 : 1;
+
+    // source right-edge mid, target left-edge mid
+    const x1 = (src.cx !== undefined ? src.cx : src.x+src.w/2) + (src.w||src.r*2)/2;
+    const y1 = src.cy || src.y+src.h/2;
+    // For doc nodes: connect from left
+    const x2 = tgt.type==='doc' ? tgt.cx - tgt.r : tgt.x;
+    const y2 = tgt.cy || tgt.y+tgt.h/2;
+    // Bezier
+    const mx = (x1+x2)/2;
+    const path = el('path', {
+      d:`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`,
+      fill:'none', stroke:color, 'stroke-width':strokeW,
+      'stroke-dasharray': isDashed ? '5,4' : 'none',
+      'stroke-opacity': '0.7',
+      'data-src': e.src, 'data-tgt': e.tgt,
+      class:'edge',
+    });
+    edgeG.appendChild(path);
+  }
+
+  // ── draw xref edges (doc-to-doc cross-references) ──
+  const nodeByIdTemp = {};
+  for (const n of nodes) nodeByIdTemp[n.id] = n;
+  for (const e of xrefEdges) {
+    const src = nodeByIdTemp[e.src];
+    const tgt = nodeByIdTemp[e.tgt];
+    if (!src || !tgt) continue;
+    // Connect circle edges
+    const dx = tgt.cx - src.cx, dy = tgt.cy - src.cy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const x1 = src.cx + dx/dist * src.r;
+    const y1 = src.cy + dy/dist * src.r;
+    const x2 = tgt.cx - dx/dist * tgt.r;
+    const y2 = tgt.cy - dy/dist * tgt.r;
+    // Use a slight arc (quadratic bezier) to distinguish from primary edges
+    const midX = (x1+x2)/2, midY = (y1+y2)/2;
+    const perpX = -(dy/dist)*30, perpY = (dx/dist)*30;
+    const path = el('path', {
+      d: `M${x1},${y1} Q${midX+perpX},${midY+perpY} ${x2},${y2}`,
+      fill:'none', stroke:'#aaa', 'stroke-width':'0.8',
+      'stroke-dasharray':'2,3', 'stroke-opacity':'0.5',
+      'data-src': e.src, 'data-tgt': e.tgt, class:'edge xref-edge',
+    });
+    xrefG.appendChild(path);
+  }
+  // Include xrefEdges in allEdges so highlight logic can follow them
+  allEdges = [...allEdges, ...xrefEdges];
+
+  // ── draw nodes ──
+  const nodeById = {};
+  for (const n of nodes) {
+    nodeById[n.id] = n;
+    const g = el('g', {class:'node', 'data-id':n.id, cursor:'pointer'});
+
+    if (n.type === 'doc') {
+      // circle
+      const c = el('circle', {
+        cx: n.cx, cy: n.cy, r: n.r,
+        fill: n.fill, stroke: n.stroke, 'stroke-width':'1.5',
+        'data-id': n.id,
+      });
+      if (n.retired) {
+        c.setAttribute('stroke-dasharray','3,2');
+        c.setAttribute('opacity','0.65');
+      }
+      g.appendChild(c);
+      // doc ID — bold, right of circle
+      const tId = txt('text', {
+        x: n.cx + n.r + 5, y: n.cy + 3,
+        'font-size':'9', fill:'#222', 'font-family':'monospace',
+        'font-weight':'700',
+      }, n.docId);
+      g.appendChild(tId);
+      // doc name — lighter, below ID
+      const docTitle = (DOCS[n.docId]||{}).t || '';
+      const maxChars = 42;
+      const displayTitle = docTitle.length > maxChars ? docTitle.slice(0, maxChars-1)+'…' : docTitle;
+      const tName = txt('text', {
+        x: n.cx + n.r + 5, y: n.cy + 14,
+        'font-size':'8', fill:'#555', 'font-family':'Segoe UI, Arial, sans-serif',
+        'font-style': n.retired ? 'italic' : 'normal',
+      }, displayTitle);
+      g.appendChild(tName);
+    } else {
+      // rounded rect
+      const rx = el('rect', {
+        x:n.x, y:n.y, width:n.w, height:n.h,
+        rx:8, ry:8,
+        fill:n.fill, stroke:n.stroke, 'stroke-width':'1.5',
+        'data-id': n.id,
+      });
+      g.appendChild(rx);
+      // text lines
+      const lines = n.label;
+      const fs = n.type==='primary' ? 12 : n.type==='section' ? 10 : n.type==='subsection' ? 9 : 9;
+      const lineH = fs * 1.4;
+      const totalTH = lines.length * lineH;
+      lines.forEach((line, li) => {
+        const t = txt('text', {
+          x: n.cx, y: n.cy - totalTH/2 + li*lineH + lineH*0.75,
+          'font-size': fs, fill: n.textColor,
+          'text-anchor':'middle', 'font-family':'Segoe UI, Arial, sans-serif',
+          'font-weight': n.type==='primary'?'700':'600',
+        }, line);
+        g.appendChild(t);
+      });
+    }
+
+    g.addEventListener('click', (e) => { e.stopPropagation(); onNodeClick(n.id, nodeById); });
+    nodeG.appendChild(g);
+  }
+
+  // click on background resets
+  document.getElementById('canvas').onclick = () => resetHighlight();
+}
+
+// ── highlight logic ───────────────────────────────────────────────
+function onNodeClick(id, nodeById) {
+  selectedId = id;
+  const node = nodeById[id];
+
+  // Build connected set
+  const connected = new Set([id]);
+  for (const e of allEdges) {
+    if (e.src === id) connected.add(e.tgt);
+    if (e.tgt === id) connected.add(e.src);
+  }
+  // Also include ancestors up to root for sections/subsections
+  // (so clicking a doc shows the section that owns it)
+  function addAncestors(nid) {
+    for (const e of allEdges) {
+      if (e.tgt === nid && !connected.has(e.src)) {
+        connected.add(e.src);
+        addAncestors(e.src);
+      }
+    }
+  }
+  if (node.type === 'doc' || node.type === 'subsection') addAncestors(id);
+
+  // apply visual dim/highlight
+  document.querySelectorAll('.edge').forEach(el => {
+    const s = el.getAttribute('data-src');
+    const t = el.getAttribute('data-tgt');
+    const active = connected.has(s) && connected.has(t);
+    el.setAttribute('stroke-opacity', active ? '1' : '0.05');
+    if (active) {
+      el.setAttribute('stroke-width', (parseFloat(el.getAttribute('stroke-width'))||1) * 1.8);
+      el.style.stroke = '#1a1a1a';
+    }
+  });
+  document.querySelectorAll('.node').forEach(el => {
+    const nid = el.getAttribute('data-id');
+    const active = connected.has(nid);
+    const isSelected = nid === id;
+    el.querySelectorAll('rect, circle').forEach(shape => {
+      shape.setAttribute('opacity', active ? '1' : '0.1');
+      if (isSelected) shape.setAttribute('stroke', '#ff6600');
+      if (isSelected) shape.setAttribute('stroke-width', '3');
+    });
+    el.querySelectorAll('text').forEach(t => {
+      t.setAttribute('opacity', active ? '1' : '0.1');
+    });
+  });
+
+  showInfo(node);
+}
+
+function resetHighlight() {
+  selectedId = null;
+  // Re-render in place (preserves current pan/zoom) to cleanly restore all styles
+  renderAll(false);
+  document.getElementById('info').style.display = 'none';
+}
+
+// ── info panel ────────────────────────────────────────────────────
+function showInfo(node) {
+  document.getElementById('inf-id').textContent    = node.docId || node.id || '';
+  document.getElementById('inf-title').textContent = node.title || node.label.join(' ') || '';
+  document.getElementById('inf-desc').textContent  = node.desc || '';
+
+  const topicEl = document.getElementById('inf-topic');
+  const topicsList = node.topics || (node.topic ? [node.topic] : []);
+  if (topicsList.length > 0) {
+    topicEl.innerHTML = topicsList.map(tp =>
+      TOPIC_LABEL[tp] ? `<span style="display:inline-block;margin:2px 3px 2px 0;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${TOPIC_COLOR[tp]}22;color:${TOPIC_COLOR[tp]};border:1px solid ${TOPIC_COLOR[tp]}66">${TOPIC_LABEL[tp]}</span>` : ''
+    ).join('');
+    topicEl.style.display = 'block';
+  } else {
+    topicEl.style.display = 'none';
+  }
+
+  const refsEl = document.getElementById('inf-refs');
+  if (node.type === 'doc' && node.referencedBy && node.referencedBy.length) {
+    refsEl.innerHTML = '<b>Referenced by:</b> ' + node.referencedBy.join(', ');
+    refsEl.style.display = 'block';
+  } else if (node.refs && node.refs.length && node.type !== 's7') {
+    refsEl.innerHTML = '<b>References:</b> ' + node.refs.slice(0,12).join(', ') +
+                       (node.refs.length > 12 ? ` + ${node.refs.length-12} more` : '');
+    refsEl.style.display = 'block';
+  } else {
+    refsEl.style.display = 'none';
+  }
+
+  document.getElementById('info').style.display = 'block';
+}
+
+// ── pan / zoom ────────────────────────────────────────────────────
+function applyTransform() {
+  root.setAttribute('transform', `translate(${vx},${vy}) scale(${vscale})`);
+}
+
+const svg = document.getElementById('canvas');
+let dragging=false, lastX=0, lastY=0;
+
+svg.addEventListener('mousedown', e => {
+  if (e.target.closest('.node')) return;
+  dragging=true; lastX=e.clientX; lastY=e.clientY;
+  svg.classList.add('grabbing');
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  vx += e.clientX-lastX; vy += e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { dragging=false; svg.classList.remove('grabbing'); });
+
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 0.91;
+  const rect = svg.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  vx = mx - (mx-vx)*factor;
+  vy = my - (my-vy)*factor;
+  vscale *= factor;
+  applyTransform();
+}, {passive:false});
+
+// touch support
+let lastDist=0, lastTX=0, lastTY=0, lastTouches=0;
+svg.addEventListener('touchstart', e=>{
+  lastTouches=e.touches.length;
+  if(e.touches.length===1){lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
+  if(e.touches.length===2){
+    lastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    lastTX=(e.touches[0].clientX+e.touches[1].clientX)/2;lastTY=(e.touches[0].clientY+e.touches[1].clientY)/2;
+  }
+  e.preventDefault();
+},{passive:false});
+svg.addEventListener('touchmove',e=>{
+  if(e.touches.length===1&&lastTouches===1){
+    vx+=e.touches[0].clientX-lastX;vy+=e.touches[0].clientY-lastY;
+    lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;applyTransform();
+  }
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    const f=d/lastDist; const mx=(e.touches[0].clientX+e.touches[1].clientX)/2,my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    vx=mx-(lastTX-vx)*f-lastTX+mx;vy=my-(lastTY-vy)*f-lastTY+my;vscale*=f;lastDist=d;lastTX=mx;lastTY=my;applyTransform();
+  }
+  e.preventDefault();
+},{passive:false});
+
+document.getElementById('zin').onclick  = () => { vscale*=1.2; applyTransform(); };
+document.getElementById('zout').onclick = () => { vscale*=0.83; applyTransform(); };
+document.getElementById('zfit').onclick = () => renderAll(true);
+
+// filter chips
+document.querySelectorAll('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+    c.classList.add('active');
+    activeFilter = c.dataset.f;
+    renderAll();
+  });
+});
+
+document.getElementById('info-close').addEventListener('click', () => {
+  document.getElementById('info').style.display = 'none';
+  resetHighlight();
+});
+
+// ── initial render ────────────────────────────────────────────────
+renderAll();
+window.addEventListener('resize', renderAll);
+</script>
+</body>
+</html>
