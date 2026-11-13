@@ -145,6 +145,18 @@ def main():
                 "count": len(out), "bytes": sum(r["s"] for r in out),
                 "rps": RPS, "types": TYPES, "topics": TOPICS, "files": out}
     (docs / "manifest.json").write_text(json.dumps(manifest, separators=(",", ":")), encoding="utf-8")
+
+    # cache-busting: stamp app.js / style.css / manifest.json URLs in index.html with content hashes,
+    # so browsers never mix a new index.html with stale cached scripts or styles.
+    idx = docs / "index.html"
+    if idx.exists():
+        h = idx.read_text(encoding="utf-8")
+        for name in ("app.js", "style.css"):
+            f = docs / name
+            if f.exists():
+                v = hashlib.sha1(f.read_bytes()).hexdigest()[:8]
+                h = re.sub(rf'{re.escape(name)}(\?v=\w+)?"', f'{name}?v={v}"', h)
+        idx.write_text(h, encoding="utf-8")
     print(f"{len(out)} files, {added} new catalog rows, {problems} bad values, {no_rp} without an RP")
 
 

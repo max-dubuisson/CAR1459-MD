@@ -110,7 +110,7 @@
 
   function theme(t) { document.documentElement.dataset.theme = t; localStorage.setItem("theme", t); }
 
-  fetch("manifest.json").then(r => r.json()).then(m => {
+  fetch("manifest.json?t=" + Date.now()).then(r => r.json()).then(m => {
     M = m; files = m.files; ALL_IDX = m.rps.indexOf("ALL");
     $("site-title").textContent = m.title; document.title = m.title;
     $("count").textContent = `${m.count} documents · ${(m.bytes / 1048576).toFixed(0)} MB`;
