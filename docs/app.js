@@ -87,9 +87,20 @@
     const cmp = { title: (a, b) => a.t.localeCompare(b.t, undefined, { numeric: true }) || (a.i || "").localeCompare(b.i || ""),
       id: (a, b) => (a.i || "~" + a.t).localeCompare(b.i || "~" + b.t, undefined, { numeric: true }),
       size: (a, b) => b.s - a.s }[state.sort];
-    shown = files.filter(f => pass(f)).sort(cmp);
-    $("grid").className = "grid" + (state.view === "list" ? " list" : "");
-    $("grid").innerHTML = shown.map(cardHTML).join("");
+    // Group by each document's most recent RP (newest group first). RP-agnostic (ALL) and untagged docs go last.
+    const groupOf = f => { const r = f.r.filter(i => i !== ALL_IDX); return r.length ? Math.max(...r) : (f.r.length ? -1 : -2); };
+    const groups = new Map();
+    files.filter(f => pass(f)).sort(cmp).forEach(f => { const g = groupOf(f); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(f); });
+    const order = [...groups.keys()].sort((a, b) => b - a);
+    const label = g => g >= 0 ? M.rps[g] : g === -1 ? "All reporting periods" : "No reporting period";
+    shown = []; let html = "";
+    order.forEach(g => {
+      const start = shown.length; shown.push(...groups.get(g));
+      html += `<section class="group"><h2 class="ghead">${esc(label(g))} <small>${groups.get(g).length}</small></h2><div class="grid${state.view === "list" ? " list" : ""}" role="list">`
+        + groups.get(g).map((f, i) => cardHTML(f, start + i)).join("") + `</div></section>`;
+    });
+    $("grid").className = "groups";
+    $("grid").innerHTML = html;
     $("status").textContent = `${shown.length} of ${files.length} documents` + (shown.length ? "" : " — no matches, try clearing a filter");
     dropdown($("f-rp"), "rp", M.rps, "r", true);
     dropdown($("f-type"), "type", M.types, "k");

@@ -48,3 +48,8 @@ kbd{background:var(--chip);border-radius:3px;padding:0 5px}
 [hidden]{display:none!important}
 
 .fsel{width:100%}
+
+/* RP groups */
+.group{margin-bottom:26px}
+.ghead{font-size:18px;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid var(--accent)}
+.ghead small{font-size:12px;font-weight:400;color:var(--muted);margin-left:6px}
