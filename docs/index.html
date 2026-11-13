@@ -1,12 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Page</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAR1459 Document Library</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>It works</h1>
-  <p>GitHub Pages is serving this page.</p>
+<header class="top">
+  <div class="brand"><h1 id="site-title">CAR1459 Document Library</h1><span id="count" class="muted"></span></div>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Search title, document ID or filename  ( / )" autocomplete="off">
+    <select id="sort" aria-label="Sort">
+      <option value="title">Sort: Title</option>
+      <option value="id">Sort: Document ID</option>
+      <option value="size">Sort: Size</option>
+    </select>
+    <button id="view" title="Toggle card / list view">List</button>
+    <button id="theme" title="Toggle theme (t)">Theme</button>
+  </div>
+</header>
+<main>
+  <aside class="filters">
+    <div class="fhead"><strong>Filters</strong><button id="clear" class="link">Clear all</button></div>
+    <section><h2>Reporting period</h2><div id="f-rp" class="chips"></div>
+      <p class="hint">Documents tagged ALL appear under every period.</p></section>
+    <section><h2>Document type</h2><div id="f-type" class="chips"></div></section>
+    <section><h2>Topic</h2><div id="f-topic" class="chips"></div></section>
+  </aside>
+  <section class="results">
+    <div id="status" class="muted"></div>
+    <div id="grid" class="grid" role="list"></div>
+  </section>
+</main>
+<footer class="muted">Keys: <kbd>/</kbd> search · <kbd>j</kbd>/<kbd>k</kbd> move · <kbd>o</kbd> open · <kbd>r</kbd> random · <kbd>t</kbd> theme · <span id="gen"></span></footer>
+<script src="app.js"></script>
 </body>
 </html>
