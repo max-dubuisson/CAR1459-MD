@@ -23,10 +23,10 @@
 <main>
   <aside class="filters">
     <div class="fhead"><strong>Filters</strong><button id="clear" class="link">Clear all</button></div>
-    <section><h2>Reporting period</h2><div id="f-rp" class="chips"></div>
+    <section><h2>Reporting period</h2><select id="f-rp" class="fsel" aria-label="Reporting period"></select>
       <p class="hint">Documents tagged ALL appear under every period.</p></section>
-    <section><h2>Document type</h2><div id="f-type" class="chips"></div></section>
-    <section><h2>Topic</h2><div id="f-topic" class="chips"></div></section>
+    <section><h2>Document type</h2><select id="f-type" class="fsel" aria-label="Document type"></select></section>
+    <section><h2>Topic <button id="clear-topic" class="link mini" hidden>clear</button></h2><div id="f-topic" class="chips"></div></section>
   </aside>
   <section class="results">
     <div id="status" class="muted"></div>

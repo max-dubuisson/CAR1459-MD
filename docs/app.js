@@ -13,6 +13,7 @@
     const names = { rp: M.rps, type: M.types, topic: M.topics };
     for (const k of ["rp", "type", "topic"])
       (p.get(k) || "").split(",").filter(Boolean).forEach(n => { const i = names[k].indexOf(n); if (i >= 0 && !(k === "rp" && n === "ALL")) state[k].add(i); });
+    for (const k of ["rp", "type"]) if (state[k].size > 1) state[k] = new Set([[...state[k]][0]]);
     state.q = p.get("q") || ""; state.sort = p.get("sort") || "title"; state.view = p.get("view") || "grid";
   }
   function writeURL() {
@@ -58,6 +59,19 @@
     });
   }
 
+  function dropdown(el, key, names, field, isRP) {
+    const opt = (v, label, count) => `<option value="${v}">${esc(label)} (${count})</option>`;
+    let html = opt("", "ALL", files.filter(f => pass(f, key)).length);
+    names.forEach((n, i) => {
+      if (isRP && i === ALL_IDX) return;
+      const count = files.filter(f => pass(f, key) && (f[field].includes(i) || (isRP && f.r.includes(ALL_IDX)))).length;
+      html += opt(i, n, count);
+    });
+    el.innerHTML = html;
+    el.value = state[key].size ? String([...state[key]][0]) : "";
+    el.onchange = () => { state[key].clear(); if (el.value !== "") state[key].add(+el.value); render(); };
+  }
+
   function cardHTML(f, n) {
     const thumb = f.m ? `<img loading="lazy" src="thumbs/${f.m}" alt="">` : esc(f.e.toUpperCase());
     const tags = f.r.map(i => `<span class="tag rp">${esc(M.rps[i])}</span>`).join("")
@@ -77,9 +91,10 @@
     $("grid").className = "grid" + (state.view === "list" ? " list" : "");
     $("grid").innerHTML = shown.map(cardHTML).join("");
     $("status").textContent = `${shown.length} of ${files.length} documents` + (shown.length ? "" : " — no matches, try clearing a filter");
-    chips($("f-rp"), "rp", M.rps, "r", true);
-    chips($("f-type"), "type", M.types, "k");
+    dropdown($("f-rp"), "rp", M.rps, "r", true);
+    dropdown($("f-type"), "type", M.types, "k");
     chips($("f-topic"), "topic", M.topics, "c");
+    $("clear-topic").hidden = state.topic.size === 0;
     $("view").textContent = state.view === "list" ? "Cards" : "List";
     $("sort").value = state.sort;
     sel = -1; writeURL();
@@ -106,6 +121,7 @@
   $("q").oninput = e => { state.q = e.target.value.trim(); render(); };
   $("sort").onchange = e => { state.sort = e.target.value; render(); };
   $("view").onclick = () => { state.view = state.view === "list" ? "grid" : "list"; render(); };
+  $("clear-topic").onclick = () => { state.topic.clear(); render(); };
   $("clear").onclick = () => { state.rp.clear(); state.type.clear(); state.topic.clear(); state.q = ""; $("q").value = ""; render(); };
   $("theme").onclick = () => theme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
   theme(localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
