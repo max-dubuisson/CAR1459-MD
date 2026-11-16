@@ -28,4 +28,4 @@ TOPICS = [
     "Non-GHG Impacts",
 ]
 
-SITE_TITLE = "CAR1459 Document Library"
+SITE_TITLE = "Indigo Carbon Document Library"
